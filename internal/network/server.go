@@ -1,10 +1,12 @@
 package network
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/lunarKettle/message-broker/internal/broker"
 	"log/slog"
 	"net"
+	"strings"
 )
 
 type TCPServer struct {
@@ -27,7 +29,6 @@ func (s *TCPServer) Listen() error {
 	}
 	s.listener = listener
 
-	// Условие?
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
@@ -47,5 +48,38 @@ func (s *TCPServer) Stop() error {
 }
 
 func (s *TCPServer) handleConnection(conn net.Conn) {
+	defer conn.Close()
 
+	clientAddr := conn.RemoteAddr().String()
+	slog.Info("Client connected", "Address", clientAddr)
+
+	scanner := bufio.NewScanner(conn)
+	for scanner.Scan() {
+		line := scanner.Text()
+		slog.Info("Message received", "Address", clientAddr, "Message", line)
+
+		parts := strings.SplitN(line, " ", 3)
+
+		action := parts[0]
+		queue := parts[1]
+		message := ""
+		if len(parts) == 3 {
+			message = parts[2]
+		}
+
+		responseChan := make(chan string)
+		command := &broker.Command{
+			ClientID: clientAddr,
+			Action:   action,
+			Queue:    queue,
+			Message:  message,
+			Response: responseChan,
+		}
+		s.broker.ExecuteCommand(command)
+
+		response := <-responseChan
+		if _, err := conn.Write([]byte(response)); err != nil {
+			slog.Warn("failed to send response", "error", err)
+		}
+	}
 }
