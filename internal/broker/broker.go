@@ -23,7 +23,6 @@ func NewMessageBroker() *MessageBroker {
 func (mb *MessageBroker) Start() {
 	go func() {
 		for command := range mb.commands {
-			slog.Info("Received command", "command", command)
 			switch command.Action {
 			case "PUBLISH":
 				mb.publish(command.Queue, command.Message, command.Response)
@@ -37,6 +36,7 @@ func (mb *MessageBroker) Start() {
 }
 
 func (mb *MessageBroker) ExecuteCommand(command *Command) {
+	slog.Info("Received command", "command", command)
 	mb.commands <- command
 }
 
