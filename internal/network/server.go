@@ -76,10 +76,10 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 			Response: responseChan,
 		}
 		s.broker.ExecuteCommand(command)
-
-		response := <-responseChan
-		if _, err := conn.Write([]byte(response)); err != nil {
-			slog.Warn("failed to send response", "error", err)
+		for response := range responseChan {
+			if _, err := conn.Write([]byte(response + "\n")); err != nil {
+				slog.Warn("failed to send response", "error", err)
+			}
 		}
 	}
 }
