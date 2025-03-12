@@ -30,6 +30,9 @@ func (mb *MessageBroker) Start() {
 				mb.subscribe(command.ClientID, command.Queue, command.Response)
 			case "CONSUME":
 				mb.consume(command.Queue, command.Response)
+			default:
+				command.Response <- "error: invalid command"
+				close(command.Response)
 			}
 		}
 	}()
