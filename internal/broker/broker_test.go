@@ -89,11 +89,26 @@ func TestBroker_Consume(t *testing.T) {
 
 	const testTopic = "testTopic"
 	const testMessage = "testMessage"
+	const emptyTopicMessage = "Empty topic"
 
 	broker := NewMessageBroker()
 	broker.Start()
 
-	pubCh := make(chan string, 1)
+	consumerCh1 := make(chan string)
+	consumeCmd1 := &Command{
+		ClientID: "testConsumerID",
+		Action:   "CONSUME",
+		Queue:    testTopic,
+		Response: consumerCh1,
+	}
+	broker.ExecuteCommand(consumeCmd1)
+
+	responseBeforePub := <-consumerCh1
+	if responseBeforePub != emptyTopicMessage {
+		t.Errorf("Expected message %s, but got %s", emptyTopicMessage, responseBeforePub)
+	}
+
+	pubCh := make(chan string)
 	publishCmd := &Command{
 		ClientID: "testPubID",
 		Action:   "PUBLISH",
@@ -107,17 +122,17 @@ func TestBroker_Consume(t *testing.T) {
 		t.Error("Expected OK, got ", pubResponse)
 	}
 
-	consumerCh := make(chan string)
-	consumeCmd := &Command{
+	consumerCh2 := make(chan string)
+	consumeCmd2 := &Command{
 		ClientID: "testConsumerID",
 		Action:   "CONSUME",
 		Queue:    testTopic,
-		Response: consumerCh,
+		Response: consumerCh2,
 	}
-	broker.ExecuteCommand(consumeCmd)
+	broker.ExecuteCommand(consumeCmd2)
 
-	response := <-consumerCh
-	if response != testMessage {
-		t.Errorf("Expected message %s, but got %s", testMessage, response)
+	responseAfterPub := <-consumerCh2
+	if responseAfterPub != testMessage {
+		t.Errorf("Expected message %s, but got %s", testMessage, responseAfterPub)
 	}
 }

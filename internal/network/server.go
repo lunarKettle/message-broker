@@ -48,38 +48,44 @@ func (s *TCPServer) Stop() error {
 }
 
 func (s *TCPServer) handleConnection(conn net.Conn) {
-	defer conn.Close()
-
 	clientAddr := conn.RemoteAddr().String()
 	slog.Info("Client connected", "Address", clientAddr)
 
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
-		line := scanner.Text()
-		slog.Info("Message received", "Address", clientAddr, "Message", line)
+		go func() {
+			line := scanner.Text()
+			slog.Info("Message received", "Address", clientAddr, "Message", line)
 
-		parts := strings.SplitN(line, " ", 3)
+			parts := strings.SplitN(line, " ", 3)
 
-		action := parts[0]
-		queue := parts[1]
-		message := ""
-		if len(parts) == 3 {
-			message = parts[2]
-		}
-
-		responseChan := make(chan string)
-		command := &broker.Command{
-			ClientID: clientAddr,
-			Action:   action,
-			Queue:    queue,
-			Message:  message,
-			Response: responseChan,
-		}
-		s.broker.ExecuteCommand(command)
-		for response := range responseChan {
-			if _, err := conn.Write([]byte(response + "\n")); err != nil {
-				slog.Warn("failed to send response", "error", err)
+			action := parts[0]
+			queue := parts[1]
+			message := ""
+			if len(parts) == 3 {
+				message = parts[2]
 			}
-		}
+
+			responseChan := make(chan string)
+			command := &broker.Command{
+				ClientID: clientAddr,
+				Action:   action,
+				Queue:    queue,
+				Message:  message,
+				Response: responseChan,
+			}
+			s.broker.ExecuteCommand(command)
+
+			for response := range command.Response {
+				if _, err := conn.Write([]byte(response + "\n")); err != nil {
+					slog.Warn("failed to send response", "error", err)
+				}
+			}
+		}()
 	}
+
+	if err := conn.Close(); err != nil {
+		slog.Warn("failed to close connection", "error", err)
+	}
+	slog.Info("Client disconnected", "Address", clientAddr)
 }

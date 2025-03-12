@@ -40,12 +40,13 @@ func (mb *MessageBroker) ExecuteCommand(command *Command) {
 	mb.commands <- command
 }
 
-func (mb *MessageBroker) publish(queue string, message string, responseCh chan string) {
+func (mb *MessageBroker) publish(topic string, message string, responseCh chan<- string) {
 	mb.mu.Lock()
 	defer mb.mu.Unlock()
-	mb.queues[queue] = append(mb.queues[queue], message)
+	defer close(responseCh)
+	mb.queues[topic] = append(mb.queues[topic], message)
 
-	if subs, exists := mb.subs[queue]; exists {
+	if subs, exists := mb.subs[topic]; exists {
 		for _, sub := range subs {
 			go func(s *Subscriber) {
 				s.Ch <- message
@@ -53,27 +54,33 @@ func (mb *MessageBroker) publish(queue string, message string, responseCh chan s
 		}
 	}
 	responseCh <- "OK"
-	close(responseCh)
 }
 
-func (mb *MessageBroker) subscribe(clientID string, queue string, responseCh chan string) {
+func (mb *MessageBroker) subscribe(clientID string, topic string, responseCh chan<- string) {
 	mb.mu.Lock()
 	defer mb.mu.Unlock()
 	sub := &Subscriber{
 		ID:    clientID,
-		Queue: queue,
+		Queue: topic,
 		Ch:    responseCh,
 	}
 
-	mb.subs[queue] = append(mb.subs[queue], sub)
+	mb.subs[topic] = append(mb.subs[topic], sub)
 	responseCh <- "OK"
 }
 
-func (mb *MessageBroker) consume(queue string, responseCh chan string) {
+func (mb *MessageBroker) consume(topic string, responseCh chan<- string) {
 	mb.mu.Lock()
 	defer mb.mu.Unlock()
-	msg := mb.queues[queue][0]
-	mb.queues[queue] = mb.queues[queue][1:]
+	defer close(responseCh)
+
+	var msg string
+	if len(mb.queues[topic]) == 0 {
+		msg = "Empty topic"
+	} else {
+		msg = mb.queues[topic][0]
+		mb.queues[topic] = mb.queues[topic][1:]
+	}
+
 	responseCh <- msg
-	close(responseCh)
 }
