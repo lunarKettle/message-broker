@@ -1,7 +1,7 @@
 # MessageBroker
 
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/lunarKettle/MessageBroker?display_name=tag)
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/lunarKettle/MessageBroker)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/lunarKettle/message-broker?display_name=tag)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/lunarKettle/message-broker)
 
 There is a simple message broker written in Go.
 
