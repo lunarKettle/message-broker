@@ -23,6 +23,8 @@ func NewTCPServer(addr string, broker *broker.MessageBroker) *TCPServer {
 }
 
 func (s *TCPServer) Listen() error {
+	s.broker.Start()
+
 	listener, err := net.Listen("tcp", s.address)
 	if err != nil {
 		return fmt.Errorf("failed to start server: %w", err)
